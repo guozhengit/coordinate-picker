@@ -49,6 +49,28 @@ interface ImageRendererOptions {
   onError?: (error: Error) => void;
 }
 
+interface ComponentStyle {
+  font?: number;
+  fontColor?: string;
+  fontSize?: number;
+  width?: number;
+  height?: number;
+}
+
+interface ComponentPosition {
+  x: number;
+  y: number;
+  page?: number;
+}
+
+interface ComponentContext {
+  style?: ComponentStyle;
+  componentName?: string;
+  position: ComponentPosition;
+}
+
+type ContextPayload = { context: ComponentContext } | ComponentContext | ComponentContext[];
+
 interface ResizeHandle {
   x: number;
   y: number;
@@ -314,6 +336,7 @@ let zoomLevel: number = 1.0; // 缩放级别
 let loadedDocument: ConvertedDocument | null = null; // 当前文档数据
 let imageRenderer: ImageRenderer | null = null; // 图片渲染器
 let fileConverter: FileConverter | null = null; // 文件转换器
+let previewContexts: ComponentContext[] = []; // 需要回显的控件上下文
 
 // DOM元素获取
 const canvas = document.getElementById('mainCanvas') as HTMLCanvasElement;
@@ -341,6 +364,14 @@ const selectionOverlay = document.getElementById(
 const canvasContainer = document.getElementById(
   'canvasContainer'
 ) as HTMLElement;
+const componentOverlay = document.getElementById(
+  'componentOverlay'
+) as HTMLElement;
+const contextHint = document.getElementById('contextHint') as HTMLElement | null;
+const contextInput = document.getElementById('contextInput') as HTMLTextAreaElement | null;
+const applyContextButton = document.getElementById('applyContext') as HTMLButtonElement | null;
+const copyContextButton = document.getElementById('copyContext') as HTMLButtonElement | null;
+const clearContextButton = document.getElementById('clearContext') as HTMLButtonElement | null;
 const originSelect = document.getElementById(
   'originSelect'
 ) as HTMLSelectElement;
@@ -385,6 +416,271 @@ function initializeModules(): void {
   });
 
   fileConverter = new FileConverter();
+}
+
+function safeJsonParse(input: string): any | null {
+  try {
+    return JSON.parse(input);
+  } catch {
+    return null;
+  }
+}
+
+function normalizeContexts(payload: ContextPayload): ComponentContext[] {
+  const maybeAny = payload as any;
+
+  // 1) 直接传 contexts 数组：[{...},{...}]
+  if (Array.isArray(maybeAny)) {
+    // 允许数组里既是 context 也可能是 {context: {...}} 或 { ..., context: {...} }
+    return maybeAny
+      .map((item: any) => {
+        if (!item) return null;
+        if (item.position) return item as ComponentContext;
+        if (item.context && item.context.position) return item.context as ComponentContext;
+        return null;
+      })
+      .filter(Boolean) as ComponentContext[];
+  }
+
+  // 2) 你提供的完整入参：{ fileNo, userId, components: [{..., context: {...}}, ...] }
+  if (maybeAny && typeof maybeAny === 'object' && Array.isArray(maybeAny.components)) {
+    return maybeAny.components
+      .map((c: any) => (c && c.context && c.context.position ? (c.context as ComponentContext) : null))
+      .filter(Boolean) as ComponentContext[];
+  }
+
+  // 3) 包一层：{ context: {...} }
+  if (maybeAny && typeof maybeAny === 'object' && maybeAny.context && maybeAny.context.position) {
+    return [maybeAny.context as ComponentContext];
+  }
+
+  // 4) 直接传单个 context：{ style, componentName, position }
+  if (maybeAny && typeof maybeAny === 'object' && maybeAny.position) {
+    return [maybeAny as ComponentContext];
+  }
+
+  return [];
+}
+
+function loadContextsFromUrl(): void {
+  const params = new URLSearchParams(window.location.search);
+  const raw = params.get('contexts') || params.get('context');
+  if (!raw) return;
+
+  const decoded = (() => {
+    try {
+      return decodeURIComponent(raw);
+    } catch {
+      return raw;
+    }
+  })();
+
+  const parsed = safeJsonParse(decoded);
+  if (!parsed) {
+    console.warn('无法解析回显参数 context/contexts');
+    if (contextHint) {
+      contextHint.textContent = '回显参数解析失败：请检查 URL 中的 JSON';
+    }
+    return;
+  }
+
+  previewContexts = normalizeContexts(parsed).filter((c) => !!c && !!c.position);
+  if (contextHint) {
+    contextHint.textContent = `已加载回显控件：${previewContexts.length} 个`;
+  }
+}
+
+function setContextsFromText(rawText: string): boolean {
+  const text = (rawText || '').trim();
+  if (!text) {
+    previewContexts = [];
+    if (contextHint) contextHint.textContent = '未加载回显控件';
+    renderComponentOverlays();
+    return true;
+  }
+
+  // 允许用户直接粘贴 URL encode 过的 JSON
+  const decoded = (() => {
+    try {
+      return decodeURIComponent(text);
+    } catch {
+      return text;
+    }
+  })();
+
+  const parsed = safeJsonParse(decoded);
+  if (!parsed) {
+    if (contextHint) contextHint.textContent = '参数解析失败：请粘贴合法 JSON';
+    return false;
+  }
+
+  const contexts = normalizeContexts(parsed).filter((c) => !!c && !!c.position);
+  if (!contexts.length) {
+    if (contextHint) contextHint.textContent = '参数为空或缺少 position';
+    previewContexts = [];
+    renderComponentOverlays();
+    return false;
+  }
+
+  previewContexts = contexts;
+  if (contextHint) contextHint.textContent = `已加载回显控件：${previewContexts.length} 个`;
+  renderComponentOverlays();
+  return true;
+}
+
+function autosizeContextTextarea(): void {
+  if (!contextInput) return;
+  // 根据内容自适应高度，尽量让“单页参数”不出现滚动条
+  contextInput.style.height = 'auto';
+  const maxHeight = Math.round(window.innerHeight * 0.75);
+  contextInput.style.height = `${Math.min(contextInput.scrollHeight, maxHeight)}px`;
+}
+
+function bindContextInputUi(): void {
+  if (applyContextButton && contextInput) {
+    applyContextButton.addEventListener('click', () => {
+      setContextsFromText(contextInput.value);
+      autosizeContextTextarea();
+    });
+
+    contextInput.addEventListener('keydown', (e: KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        setContextsFromText(contextInput.value);
+        autosizeContextTextarea();
+      }
+    });
+  }
+
+  if (copyContextButton && contextInput) {
+    copyContextButton.addEventListener('click', async () => {
+      const text = contextInput.value || '';
+      const ok = await copyToClipboard(text);
+      if (ok) {
+        if (contextHint) contextHint.textContent = '已复制到剪贴板';
+        const original = copyContextButton.textContent || '复制';
+        copyContextButton.textContent = '已复制';
+        setTimeout(() => {
+          copyContextButton.textContent = original;
+        }, 800);
+      } else {
+        if (contextHint) contextHint.textContent = '复制失败（可手动全选复制）';
+      }
+    });
+  }
+
+  if (clearContextButton && contextInput) {
+    clearContextButton.addEventListener('click', () => {
+      contextInput.value = '';
+      setContextsFromText('');
+      autosizeContextTextarea();
+    });
+  }
+}
+
+function clearComponentOverlays(): void {
+  componentOverlay.innerHTML = '';
+}
+
+function renderComponentOverlays(): void {
+  clearComponentOverlays();
+  if (!previewContexts.length) return;
+
+  // overlay 尺寸要跟随 canvas
+  componentOverlay.style.width = `${canvas.width}px`;
+  componentOverlay.style.height = `${canvas.height}px`;
+
+  const factor = renderScale * zoomLevel;
+  const origin = originSelect.value;
+
+  const currentPageContexts = previewContexts.filter((c) => {
+    const page = c.position?.page ?? 1;
+    return page === currentPageNumber;
+  });
+
+  currentPageContexts.forEach((c) => {
+    const w = Math.max(1, Math.round((c.style?.width ?? 1) * factor));
+    const h = Math.max(1, Math.round((c.style?.height ?? 1) * factor));
+    const px = (c.position?.x ?? 0) * factor;
+    const py = (c.position?.y ?? 0) * factor;
+
+    let left = 0;
+    let top = 0;
+    switch (origin) {
+      case 'top-left':
+        left = px;
+        top = py;
+        break;
+      case 'bottom-left':
+        left = px;
+        top = canvas.height - py - h;
+        break;
+      case 'top-right':
+        left = canvas.width - px - w;
+        top = py;
+        break;
+      case 'bottom-right':
+        left = canvas.width - px - w;
+        top = canvas.height - py - h;
+        break;
+      default:
+        left = px;
+        top = py;
+    }
+
+    const marker = document.createElement('div');
+    marker.className = 'component-marker';
+    marker.style.left = `${Math.round(left)}px`;
+    marker.style.top = `${Math.round(top)}px`;
+    marker.style.width = `${w}px`;
+    marker.style.height = `${h}px`;
+
+    const label = document.createElement('div');
+    label.className = 'component-label';
+    label.textContent = c.componentName || '未命名控件';
+
+    // 样式回显（字体/颜色/字号）
+    if (c.style?.fontColor) {
+      const fc = c.style.fontColor.replace('#', '');
+      if (/^[0-9a-fA-F]{6}$/.test(fc)) {
+        label.style.color = `#${fc}`;
+      }
+    }
+    if (c.style?.fontSize) {
+      label.style.fontSize = `${Math.max(10, Math.round(c.style.fontSize * zoomLevel))}px`;
+    }
+
+    marker.appendChild(label);
+    componentOverlay.appendChild(marker);
+  });
+}
+
+function updateContextInputFromSelection(): void {
+  if (!contextInput) return;
+  if (!currentSelection) return;
+
+  const ctxObj: { context: ComponentContext } = {
+    context: {
+      componentName: '未命名控件',
+      style: {
+        width: currentSelection.width,
+        height: currentSelection.height,
+      },
+      position: {
+        x: currentSelection.x,
+        y: currentSelection.y,
+        page: currentPageNumber,
+      },
+    },
+  };
+
+  contextInput.value = JSON.stringify(ctxObj, null, 2);
+  autosizeContextTextarea();
+
+  // 同步刷新回显（让左侧生成的参数立刻可用于右侧回显）
+  previewContexts = [ctxObj.context];
+  if (contextHint) contextHint.textContent = `已加载回显控件：${previewContexts.length} 个`;
+  renderComponentOverlays();
 }
 
 // 加载文件（支持多种格式）
@@ -470,6 +766,9 @@ async function renderPage(pageNum: number): Promise<void> {
   selectionRect = null;
   currentSelection = null;
   updateSelectionOutput(null);
+
+  // 回显控件坐标
+  renderComponentOverlays();
 }
 
 // 更新页面控制按钮状态
@@ -488,32 +787,33 @@ function getPDFCoordinates(event: MouseEvent): Coordinates {
   // 获取当前选择的起始位置
   const origin = originSelect.value;
   let pdfX: number, pdfY: number;
+  const factor = renderScale * zoomLevel;
 
   switch (origin) {
     case 'top-left':
       // 左上角为原点
-      pdfX = Math.round(canvasX / renderScale);
-      pdfY = Math.round(canvasY / renderScale);
+      pdfX = Math.round(canvasX / factor);
+      pdfY = Math.round(canvasY / factor);
       break;
     case 'bottom-left':
       // 左下角为原点（原始的PDF坐标系）
-      pdfX = Math.round(canvasX / renderScale);
-      pdfY = Math.round((canvas.height - canvasY) / renderScale);
+      pdfX = Math.round(canvasX / factor);
+      pdfY = Math.round((canvas.height - canvasY) / factor);
       break;
     case 'top-right':
       // 右上角为原点
-      pdfX = Math.round((canvas.width - canvasX) / renderScale);
-      pdfY = Math.round(canvasY / renderScale);
+      pdfX = Math.round((canvas.width - canvasX) / factor);
+      pdfY = Math.round(canvasY / factor);
       break;
     case 'bottom-right':
       // 右下角为原点
-      pdfX = Math.round((canvas.width - canvasX) / renderScale);
-      pdfY = Math.round((canvas.height - canvasY) / renderScale);
+      pdfX = Math.round((canvas.width - canvasX) / factor);
+      pdfY = Math.round((canvas.height - canvasY) / factor);
       break;
     default:
       // 默认为左上角
-      pdfX = Math.round(canvasX / renderScale);
-      pdfY = Math.round(canvasY / renderScale);
+      pdfX = Math.round(canvasX / factor);
+      pdfY = Math.round(canvasY / factor);
   }
 
   return { x: pdfX, y: pdfY, canvasX: canvasX, canvasY: canvasY };
@@ -537,36 +837,37 @@ function convertCanvasSelectionToPDF(
 ): SelectionRect {
   const origin = originSelect.value;
   let pdfX: number, pdfY: number, pdfWidth: number, pdfHeight: number;
+  const factor = renderScale * zoomLevel;
 
   // 宽度和高度总是正值
-  pdfWidth = Math.round(width / renderScale);
-  pdfHeight = Math.round(height / renderScale);
+  pdfWidth = Math.round(width / factor);
+  pdfHeight = Math.round(height / factor);
 
   switch (origin) {
     case 'top-left':
       // 左上角为原点
-      pdfX = Math.round(canvasX / renderScale);
-      pdfY = Math.round(canvasY / renderScale);
+      pdfX = Math.round(canvasX / factor);
+      pdfY = Math.round(canvasY / factor);
       break;
     case 'bottom-left':
       // 左下角为原点（原始的PDF坐标系）
-      pdfX = Math.round(canvasX / renderScale);
-      pdfY = Math.round((canvas.height - canvasY - height) / renderScale);
+      pdfX = Math.round(canvasX / factor);
+      pdfY = Math.round((canvas.height - canvasY - height) / factor);
       break;
     case 'top-right':
       // 右上角为原点
-      pdfX = Math.round((canvas.width - canvasX - width) / renderScale);
-      pdfY = Math.round(canvasY / renderScale);
+      pdfX = Math.round((canvas.width - canvasX - width) / factor);
+      pdfY = Math.round(canvasY / factor);
       break;
     case 'bottom-right':
       // 右下角为原点
-      pdfX = Math.round((canvas.width - canvasX - width) / renderScale);
-      pdfY = Math.round((canvas.height - canvasY - height) / renderScale);
+      pdfX = Math.round((canvas.width - canvasX - width) / factor);
+      pdfY = Math.round((canvas.height - canvasY - height) / factor);
       break;
     default:
       // 默认为左上角
-      pdfX = Math.round(canvasX / renderScale);
-      pdfY = Math.round(canvasY / renderScale);
+      pdfX = Math.round(canvasX / factor);
+      pdfY = Math.round(canvasY / factor);
   }
 
   return { x: pdfX, y: pdfY, width: pdfWidth, height: pdfHeight };
@@ -1008,16 +1309,19 @@ canvas.addEventListener('mouseup', function (event: MouseEvent) {
 
       // 重新绘制（清除临时选区）
       drawSelection();
+      updateContextInputFromSelection();
     } else if (isDraggingSelection) {
       // 完成选区拖动
       isDraggingSelection = false;
       canvas.style.cursor = 'crosshair';
+      updateContextInputFromSelection();
     } else if (isResizingSelection) {
       // 完成选区调整大小
       isResizingSelection = false;
       resizeDirection = '';
       originalSelectionRect = null;
       canvas.style.cursor = 'crosshair';
+      updateContextInputFromSelection();
     }
   }
 });
@@ -1108,6 +1412,9 @@ originSelect.addEventListener('change', function () {
     };
     updateSelectionOutput(currentSelection);
   }
+
+  // 回显控件跟随坐标原点变化
+  renderComponentOverlays();
 });
 
 // 复制到剪贴板功能
@@ -1205,5 +1512,7 @@ canvas.addEventListener('wheel', function (event: WheelEvent) {
 // 页面加载完成后的初始化
 window.addEventListener('load', function () {
   initializeModules();
+  loadContextsFromUrl();
+  bindContextInputUi();
   console.log('坐标工具已就绪，请选择文件');
 });
