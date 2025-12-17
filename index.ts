@@ -310,6 +310,7 @@ class FileConverter {
 let documentInstance: any = null;
 let currentPageNumber: number = 1;
 let renderScale: number = 1.5;
+let zoomLevel: number = 1.0; // 缩放级别
 let loadedDocument: ConvertedDocument | null = null; // 当前文档数据
 let imageRenderer: ImageRenderer | null = null; // 图片渲染器
 let fileConverter: FileConverter | null = null; // 文件转换器
@@ -343,6 +344,10 @@ const canvasContainer = document.getElementById(
 const originSelect = document.getElementById(
   'originSelect'
 ) as HTMLSelectElement;
+const zoomInButton = document.getElementById('zoomIn') as HTMLButtonElement;
+const zoomOutButton = document.getElementById('zoomOut') as HTMLButtonElement;
+const zoomResetButton = document.getElementById('zoomReset') as HTMLButtonElement;
+const zoomLevelDisplay = document.getElementById('zoomLevel') as HTMLElement;
 
 // 框选相关变量
 let isSelecting: boolean = false;
@@ -387,7 +392,8 @@ async function loadFile(file: File): Promise<void> {
   try {
     // 检查文件类型
     if (!fileConverter?.isSupported(file)) {
-      throw new Error(`不支持的文件类型: ${file.type}`);
+      const supportedFormats = '.pdf, .png, .jpg, .jpeg, .gif, .webp, .svg';
+      throw new Error(`不支持的文件类型: ${file.type}\n支持的格式: ${supportedFormats}`);
     }
 
     fileSelector.style.display = 'block';
@@ -417,7 +423,8 @@ async function loadFile(file: File): Promise<void> {
     updatePageControls();
   } catch (error) {
     console.error('加载失败:', error);
-    fileSelector.textContent = '加载失败: ' + (error as Error).message;
+    const errorMessage = (error as Error).message;
+    fileSelector.innerHTML = `<div style="color: #dc3545; font-weight: bold;">❌ 加载失败</div><div style="margin-top: 10px; font-size: 12px;">${errorMessage}</div><div style="margin-top: 10px; font-size: 12px; color: #666;">请点击重新选择文件</div>`;
     fileSelector.style.display = 'block';
     canvas.style.display = 'none';
   }
@@ -431,13 +438,30 @@ async function renderPage(pageNum: number): Promise<void> {
 
   const pageData = loadedDocument.pages[pageNum - 1];
 
-  // 使用ImageRenderer渲染
+  // 使用ImageRenderer渲染（应用缩放）
   if (imageRenderer) {
-    await imageRenderer.renderFromImageData(
-      pageData.imageData,
-      pageData.width,
-      pageData.height
-    );
+    const scaledWidth = Math.round(pageData.width * zoomLevel);
+    const scaledHeight = Math.round(pageData.height * zoomLevel);
+    
+    // 创建临时canvas进行缩放
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = pageData.width;
+    tempCanvas.height = pageData.height;
+    const tempCtx = tempCanvas.getContext('2d');
+    if (tempCtx) {
+      tempCtx.putImageData(pageData.imageData, 0, 0);
+      
+      // 在主canvas上绘制缩放后的图像
+      canvas.width = scaledWidth;
+      canvas.height = scaledHeight;
+      ctx.drawImage(tempCanvas, 0, 0, scaledWidth, scaledHeight);
+      
+      // 保存图像数据
+      const scaledImageData = ctx.getImageData(0, 0, scaledWidth, scaledHeight);
+      if (imageRenderer) {
+        (imageRenderer as any).imageData = scaledImageData;
+      }
+    }
   }
 
   currentPageDisplay.textContent = pageNum.toString();
@@ -784,7 +808,9 @@ canvas.addEventListener('mousedown', function (event: MouseEvent) {
 canvas.addEventListener('mousemove', function (event: MouseEvent) {
   const relativeCoords = getRelativeCoordinates(event);
   const coords = getPDFCoordinates(event);
-  coordinateOutput.textContent = `x: ${coords.x}, y: ${coords.y}`;
+  
+  // 显示原始坐标和画布坐标
+  coordinateOutput.textContent = `原始: x: ${coords.x}, y: ${coords.y} | 画布: x: ${Math.round(coords.canvasX || 0)}, y: ${Math.round(coords.canvasY || 0)}`;
 
   // 如果没有任何操作进行中，检查光标样式
   if (!isSelecting && !isDraggingSelection && !isResizingSelection) {
@@ -1129,6 +1155,50 @@ selectionOutput.addEventListener('click', async function () {
     if (success) {
       showCopySuccess(selectionOutput, originalText);
     }
+  }
+});
+
+// 坐标复制事件
+coordinateOutput.addEventListener('click', async function () {
+  const text = coordinateOutput.textContent || '';
+  const match = text.match(/原始: x: (-?\d+), y: (-?\d+)/);
+  if (match) {
+    const clipboardText = `{x: ${match[1]}, y: ${match[2]}}`;
+    const success = await copyToClipboard(clipboardText);
+    if (success) {
+      showCopySuccess(coordinateOutput, text);
+    }
+  }
+});
+
+// 缩放功能
+function updateZoomLevel(newZoom: number): void {
+  zoomLevel = Math.max(0.25, Math.min(4, newZoom)); // 限制在0.25到4之间
+  zoomLevelDisplay.textContent = `${Math.round(zoomLevel * 100)}%`;
+  
+  if (loadedDocument && currentPageNumber) {
+    renderPage(currentPageNumber);
+  }
+}
+
+zoomInButton.addEventListener('click', function () {
+  updateZoomLevel(zoomLevel + 0.25);
+});
+
+zoomOutButton.addEventListener('click', function () {
+  updateZoomLevel(zoomLevel - 0.25);
+});
+
+zoomResetButton.addEventListener('click', function () {
+  updateZoomLevel(1.0);
+});
+
+// 鼠标滚轮缩放
+canvas.addEventListener('wheel', function (event: WheelEvent) {
+  if (event.ctrlKey) {
+    event.preventDefault();
+    const delta = event.deltaY > 0 ? -0.1 : 0.1;
+    updateZoomLevel(zoomLevel + delta);
   }
 });
 

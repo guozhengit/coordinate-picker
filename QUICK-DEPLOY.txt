@@ -1,0 +1,142 @@
+╔══════════════════════════════════════════════════════════════════╗
+║          Coordinate Picker - Quick Deployment Reference          ║
+╚══════════════════════════════════════════════════════════════════╝
+
+📦 PREREQUISITES
+├─ Cloud server (Alibaba Cloud, Tencent Cloud, AWS, etc.)
+├─ Docker installed on server
+├─ SSH access to server
+└─ Server ports 80/443 open
+
+🚀 DEPLOYMENT METHODS
+
+┌──────────────────────────────────────────────────────────────────┐
+│ Method 1: Windows One-Click Deploy (EASIEST)                     │
+└──────────────────────────────────────────────────────────────────┘
+
+  deploy-windows.bat YOUR_SERVER_IP 80
+
+  Example:
+  deploy-windows.bat 123.45.67.89 80
+
+┌──────────────────────────────────────────────────────────────────┐
+│ Method 2: Linux/Mac Auto Deploy                                  │
+└──────────────────────────────────────────────────────────────────┘
+
+  chmod +x deploy.sh
+  ./deploy.sh YOUR_SERVER_IP 80
+
+┌──────────────────────────────────────────────────────────────────┐
+│ Method 3: Docker Manual Deploy                                   │
+└──────────────────────────────────────────────────────────────────┘
+
+  # Build
+  npm run build
+  docker build -t coordinate-picker .
+  
+  # Save and upload
+  docker save coordinate-picker:latest | gzip > app.tar.gz
+  scp app.tar.gz root@SERVER_IP:/tmp/
+  
+  # Deploy on server
+  ssh root@SERVER_IP
+  docker load < /tmp/app.tar.gz
+  docker run -d -p 80:80 --name coordinate-picker \
+    --restart unless-stopped coordinate-picker:latest
+
+┌──────────────────────────────────────────────────────────────────┐
+│ Method 4: Docker Compose                                         │
+└──────────────────────────────────────────────────────────────────┘
+
+  # Upload files
+  scp -r * root@SERVER_IP:/opt/coordinate-picker/
+  
+  # Deploy
+  ssh root@SERVER_IP
+  cd /opt/coordinate-picker
+  docker-compose up -d
+
+🔧 MANAGEMENT COMMANDS
+
+  View logs:     docker logs -f coordinate-picker
+  Restart:       docker restart coordinate-picker
+  Stop:          docker stop coordinate-picker
+  Status:        docker ps | grep coordinate-picker
+  Remove:        docker stop coordinate-picker && docker rm coordinate-picker
+
+🌐 ACCESS APPLICATION
+
+  After deployment:
+  http://YOUR_SERVER_IP:80
+
+📝 FIRST TIME SERVER SETUP
+
+  # Install Docker
+  curl -fsSL https://get.docker.com | sh
+  systemctl start docker
+  systemctl enable docker
+
+  # Open firewall
+  ufw allow 80
+  ufw allow 443
+
+🔐 ADD HTTPS (Optional)
+
+  # Install Certbot
+  apt install certbot python3-certbot-nginx -y
+  
+  # Get certificate
+  certbot --nginx -d yourdomain.com
+  
+  # Auto-renewal
+  certbot renew --dry-run
+
+📊 CLOUD PROVIDER SPECIFIC
+
+  Alibaba Cloud:
+  ├─ Create ECS instance
+  ├─ Configure Security Group (allow port 80)
+  └─ Deploy using methods above
+
+  Tencent Cloud:
+  ├─ Create CVM instance
+  ├─ Configure Security Group (allow port 80)
+  └─ Deploy using methods above
+
+  AWS:
+  ├─ Launch EC2 instance
+  ├─ Security Group: allow HTTP (80)
+  └─ Deploy using methods above
+
+❓ TROUBLESHOOTING
+
+  Can't access app:
+  → Check firewall: ufw status
+  → Check security group in cloud console
+  → Verify container: docker ps
+
+  Port already in use:
+  → Use different port: -p 8080:80
+  → Or stop existing service
+
+  Container won't start:
+  → Check logs: docker logs coordinate-picker
+  → Rebuild: docker build -t coordinate-picker .
+
+📚 DOCUMENTATION
+
+  Detailed English Guide:  DEPLOYMENT.md
+  中文快速指南:           部署快速指南.md
+  Main README:             README.md
+
+💡 TIPS
+
+  ✓ Minimum server: 1 CPU, 1GB RAM
+  ✓ Use HTTPS for production
+  ✓ Enable auto-restart: --restart unless-stopped
+  ✓ Monitor logs regularly
+  ✓ Backup before updates
+
+═══════════════════════════════════════════════════════════════════
+
+For detailed instructions, see DEPLOYMENT.md or 部署快速指南.md

@@ -37,7 +37,7 @@
         border-radius: 4px;
         font-family: monospace;
         font-size: 14px;
-        min-width: 150px;
+        min-width: 200px;
         text-align: center;
         cursor: pointer;
         transition: background-color 0.2s;
@@ -161,6 +161,26 @@
         padding: 15px 20px;
         color: #666;
       }
+
+      .zoom-controls {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        margin-left: 10px;
+      }
+
+      .zoom-controls button {
+        padding: 5px 10px;
+        font-size: 12px;
+        min-width: 30px;
+      }
+
+      .zoom-level {
+        font-size: 12px;
+        color: #666;
+        min-width: 50px;
+        text-align: center;
+      }
     </style>
   </head>
   <body>
@@ -183,9 +203,16 @@
           </select>
         </div>
 
+        <div class="zoom-controls">
+          <button id="zoomOut" title="缩小">-</button>
+          <span class="zoom-level" id="zoomLevel">100%</span>
+          <button id="zoomIn" title="放大">+</button>
+          <button id="zoomReset" title="重置缩放">重置</button>
+        </div>
+
         <div style="display: flex; align-items: center">
-          <div class="coordinate-output" id="coordinateOutput">
-            x: 0, y: 0
+          <div class="coordinate-output" id="coordinateOutput" title="点击复制原始坐标">
+            原始: x: 0, y: 0 | 画布: x: 0, y: 0
           </div>
           <div class="selection-output" id="selectionOutput" title="点击复制">
             x: 0, y: 0, w: 0, h: 0

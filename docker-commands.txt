@@ -1,0 +1,107 @@
+╔══════════════════════════════════════════════════════════════════╗
+║        Coordinate Picker - Docker Management Commands            ║
+╚══════════════════════════════════════════════════════════════════╝
+
+✅ APPLICATION IS NOW RUNNING!
+   Access at: http://localhost:3001
+
+📋 COMMON DOCKER COMMANDS
+
+┌──────────────────────────────────────────────────────────────────┐
+│ Start/Stop the Application                                       │
+└──────────────────────────────────────────────────────────────────┘
+
+  Start:        docker-compose up -d
+  Stop:         docker-compose down
+  Restart:      docker-compose restart
+  
+┌──────────────────────────────────────────────────────────────────┐
+│ View Status and Logs                                             │
+└──────────────────────────────────────────────────────────────────┘
+
+  Status:       docker ps
+  Logs (live):  docker logs -f coordinate-picker
+  Logs (last):  docker logs coordinate-picker --tail 50
+
+┌──────────────────────────────────────────────────────────────────┐
+│ Access the Container                                             │
+└──────────────────────────────────────────────────────────────────┘
+
+  Shell access: docker exec -it coordinate-picker sh
+  Run command:  docker exec coordinate-picker <command>
+
+┌──────────────────────────────────────────────────────────────────┐
+│ Update Application                                               │
+└──────────────────────────────────────────────────────────────────┘
+
+  1. Edit your code (index.ts)
+  2. Compile: npm run build
+  3. Restart: docker-compose restart
+  
+  Note: Changes to index.html and index.js are picked up automatically!
+
+┌──────────────────────────────────────────────────────────────────┐
+│ Troubleshooting                                                  │
+└──────────────────────────────────────────────────────────────────┘
+
+  Can't access app:
+  → Check if running:     docker ps
+  → Check logs:           docker logs coordinate-picker
+  → Test locally:         curl http://localhost:3001
+
+  Port already in use:
+  → Stop other servers:   docker-compose down
+  → Kill process on port: netstat -ano | findstr :3001
+
+  Container issues:
+  → Stop all:             docker-compose down
+  → Remove container:     docker rm -f coordinate-picker
+  → Restart fresh:        docker-compose up -d
+
+🔧 USEFUL DOCKER COMPOSE COMMANDS
+
+  # Build and start
+  docker-compose up -d --build
+  
+  # View all containers
+  docker-compose ps
+  
+  # Stop and remove everything
+  docker-compose down -v
+  
+  # Pull latest images
+  docker-compose pull
+
+📊 MONITORING
+
+  # Resource usage
+  docker stats coordinate-picker
+  
+  # Inspect container
+  docker inspect coordinate-picker
+  
+  # Check port mapping
+  docker port coordinate-picker
+
+🌐 ACCESS POINTS
+
+  Local:           http://localhost:3001
+  Network:         http://YOUR_LOCAL_IP:3001
+  Docker network:  coordinate-picker:3001
+
+💡 TIPS
+
+  ✓ Use docker-compose for easy management
+  ✓ Logs are important for debugging
+  ✓ Container auto-restarts unless stopped
+  ✓ Code changes require rebuild/restart
+  ✓ HTML/JS changes are live (mounted volumes)
+
+═══════════════════════════════════════════════════════════════════
+
+Current Configuration:
+- Container: coordinate-picker
+- Port: 3001 (host) -> 3001 (container)
+- Image: node:18-alpine
+- Auto-restart: Yes
+- Volumes: Live-mounted (index.html, index.js, server.js)

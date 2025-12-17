@@ -1,7 +1,28 @@
+version: '3.8'
+
 services:
-  mark:
+  coordinate-picker:
     build:
       context: .
       dockerfile: Dockerfile
+    image: coordinate-picker:latest
+    container_name: coordinate-picker
     ports:
-      - 3001:80
+      - "80:80"
+    restart: unless-stopped
+    environment:
+      - TZ=Asia/Shanghai
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    labels:
+      - "com.coordinate-picker.description=Coordinate Picker Web Application"
+      - "com.coordinate-picker.version=1.0.0"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

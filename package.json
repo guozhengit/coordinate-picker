@@ -4,8 +4,10 @@
   "description": "坐标拾取器",
   "main": "index.js",
   "scripts": {
+    "start": "node server.js",
     "dev": "tsc --watch",
     "build": "tsc",
+    "serve": "npx serve .",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

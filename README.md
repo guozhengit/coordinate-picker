@@ -1,59 +1,133 @@
-# 坐标拾取器 (Coordinate Picker)
+# Coordinate Picker
 
-一个用于从 PDF 文档/图片中精确拾取坐标的 Web 工具。
+A web tool for accurately picking coordinates from PDF documents and images.
 
-## 体验地址
-https://mark.anhejin.cn （纯前端实现，不会上传任何文件数据）
+## Live Demo
 
-## 功能特点
+https://mark.anhejin.cn (Pure frontend implementation, no file data will be uploaded)
 
-- 📄 支持 PDF 文件和图片文件的加载
-- 🎯 精确的坐标拾取功能
-- 📏 支持区域选择和调整
-- 📋 坐标信息一键复制
-- 💻 纯前端实现，无需后端服务
+## Features
 
-## 技术栈
+- 📄 Supports loading PDF and image files
+- 🎯 Precise coordinate picking functionality
+- 📏 Region selection and adjustment support
+- 📋 One-click coordinate information copying
+- 💻 Pure frontend implementation, no backend service required
+- 🔍 Zoom controls (zoom in, zoom out, reset)
+- 📊 Dual coordinate display (original & canvas coordinates)
+- ⌨️ Keyboard shortcuts for page navigation
+- 🎨 Visual selection with resize handles
+- 🖱️ Mouse wheel zoom support (Ctrl + Scroll)
+
+## Tech Stack
 
 - TypeScript
 - PDF.js
 - HTML5 Canvas
-- 原生 JavaScript
+- Native JavaScript
 
-## 安装
+## Installation
 
 ```bash
-# 使用 pnpm 安装依赖
+# Install dependencies using pnpm (or npm)
 pnpm install
+# or
+npm install
 ```
 
-## 开发
+## Quick Start
+
+**Windows (Easiest Way):**
+```bash
+# Double-click start.bat in the project folder
+# Or run in terminal:
+.\start.bat
+```
+
+**Or use npm:**
+```bash
+npm start
+```
+
+The browser will automatically open at **http://localhost:3001**
+
+> **Note:** The start.bat script will automatically stop any existing server on port 3001 before starting a new one.
+
+## Development
 
 ```bash
-# 启动开发模式，支持实时编译
-pnpm dev
+# Start the development server (recommended)
+npm start
+# Server will run at http://localhost:3001
 
-# 构建项目
+# Start development mode with live TypeScript compilation
+pnpm dev
+# or
+npm run dev
+
+# Build the project
 pnpm build
+# or
+npm run build
+
+# Alternative: Serve using npx (requires no installation)
+pnpm serve
 ```
 
-## 使用方法
+## Usage
 
-1. 打开 `index.html` 文件
-2. 点击"选择文件"按钮上传 PDF 或图片
-3. 在文档上点击或拖动以选择区域
-4. 坐标信息会实时显示在界面上
-5. 点击复制按钮可复制坐标信息
+1. Open the `index.html` file
+2. Click the "Choose File" button to upload a PDF or image
+3. Click or drag on the document to select a region
+4. Coordinate information will be displayed in real-time on the interface
+5. Click the copy button to copy coordinate information
+6. Use zoom controls (+, -, Reset) or Ctrl+Scroll to zoom in/out
+7. Use arrow keys or click buttons to navigate between PDF pages
+8. Double-click to clear the selection
 
-## 支持的文件类型
+## Supported File Types
 
-- PDF 文件 (.pdf)
-- 图片文件 (.jpg, .jpeg, .png, .gif, .bmp)
+- PDF files (.pdf)
+- Image files (.jpg, .jpeg, .png, .gif, .bmp)
 
-## 注意事项
+## Deployment
 
-- PDF 文件处理依赖于 PDF.js，需要确保能访问 CDN 资源
+For detailed cloud deployment instructions:
+- **English Guide**: See [DEPLOYMENT.md](DEPLOYMENT.md)
+- **中文快速指南**: 查看 [部署快速指南.md](部署快速指南.md)
 
-## 许可证
+**Quick deployment:**
+
+```bash
+# Build the application
+npm run build
+
+# Deploy using Docker
+docker build -t coordinate-picker .
+docker run -d -p 80:80 --name coordinate-picker coordinate-picker
+```
+
+**Automated deployment (Windows):**
+
+```bash
+# Deploy to cloud server
+deploy-windows.bat YOUR_SERVER_IP 80
+```
+
+**Automated deployment (Linux/Mac):**
+
+```bash
+chmod +x deploy.sh
+./deploy.sh YOUR_SERVER_IP 80
+```
+
+## Notes
+
+- PDF processing depends on PDF.js, ensure CDN resources are accessible
+- Zoom range: 25% - 400%
+- Supports keyboard navigation (Arrow keys)
+- Click coordinate display to copy to clipboard
+
+## License
 
 ISC License

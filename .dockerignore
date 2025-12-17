@@ -1,5 +1,14 @@
 node_modules
+npm-debug.log
 .git
 .gitignore
-Dockerfile
+README.md
+DEPLOYMENT.md
 docker-compose.yaml
+deploy.sh
+start.bat
+start.ps1
+server.js
+*.ts
+tsconfig.json
+.dockerignore

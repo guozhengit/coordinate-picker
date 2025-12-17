@@ -1,0 +1,20 @@
+# Simple Dockerfile using Node.js built-in server
+# No external dependencies needed
+
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copy application files
+COPY index.html .
+COPY index.js .
+COPY server.js .
+COPY package*.json .
+
+# Install dependencies (if needed)
+RUN npm install --production || true
+
+EXPOSE 3001
+
+# Use the Node.js server we already have
+CMD ["node", "server.js"]
