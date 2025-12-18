@@ -44,34 +44,91 @@ npm install
 .\start.bat
 ```
 
-**Or use npm:**
-```bash
-npm start
-```
-
 The browser will automatically open at **http://localhost:3001**
 
 > **Note:** The start.bat script will automatically stop any existing server on port 3001 before starting a new one.
 
+## Docker Deployment
+
+### Build Docker Image
+
+**With Automatic Timestamp Version:**
+```bash
+# Double-click build.bat or run:
+build.bat
+
+# This creates images with timestamp versions like:
+# - coordinate-picker:20251217_120530 (191 MB)
+# - coordinate-picker:latest
+
+# Features:
+# ✅ Auto-cleanup old artifacts
+# ✅ TypeScript compilation
+# ✅ Image verification
+# ✅ Build labels and metadata
+# ✅ Layer optimization
+```
+
+**View Image Information:**
+```bash
+# View all image details and metadata
+docker-info.bat
+
+# Shows:
+# - Image list with sizes
+# - Build labels and timestamps
+# - Environment variables
+# - Layer information
+```
+
+**Or manually:**
+```bash
+# Build with custom version
+docker build -t coordinate-picker:v1.0 \
+  --build-arg VERSION=v1.0 \
+  --build-arg BUILD_DATE=$(date +%Y%m%d) \
+  --label "build.version=v1.0" .
+
+# Build with docker-compose (uses environment variables)
+VERSION=$(date +%Y%m%d_%H%M%S) BUILD_DATE=$(date +%Y%m%d_%H%M%S) docker-compose up -d --build
+```
+
+### Deploy to Cloud Server
+
+**Automatic Deployment with Timestamp Version:**
+```bash
+# Deploy to cloud server (version auto-generated)
+deploy-windows.bat YOUR_SERVER_IP 80
+
+# Example:
+deploy-windows.bat 123.45.67.89 80
+```
+
+**Deployment Process (7 Steps):**
+1. ✅ Compile TypeScript
+2. ✅ Build Docker image with version tag
+3. ✅ Verify image integrity
+4. ✅ Save and compress image (shows size)
+5. ✅ Upload to server via SCP
+6. ✅ Deploy on server with health checks
+7. ✅ Clean up temporary files
+
+**Features:**
+- 🏷️ Automatic timestamp versioning
+- 📦 Image size display
+- ✅ Validation at each step
+- 🔍 Post-deployment verification
+- 🏥 Health check integration
+- 📊 Detailed deployment info
+
 ## Development
 
 ```bash
-# Start the development server (recommended)
-npm start
-# Server will run at http://localhost:3001
-
 # Start development mode with live TypeScript compilation
-pnpm dev
-# or
 npm run dev
 
 # Build the project
-pnpm build
-# or
 npm run build
-
-# Alternative: Serve using npx (requires no installation)
-pnpm serve
 ```
 
 ## Usage
@@ -89,37 +146,6 @@ pnpm serve
 
 - PDF files (.pdf)
 - Image files (.jpg, .jpeg, .png, .gif, .bmp)
-
-## Deployment
-
-For detailed cloud deployment instructions:
-- **English Guide**: See [DEPLOYMENT.md](DEPLOYMENT.md)
-- **中文快速指南**: 查看 [部署快速指南.md](部署快速指南.md)
-
-**Quick deployment:**
-
-```bash
-# Build the application
-npm run build
-
-# Deploy using Docker
-docker build -t coordinate-picker .
-docker run -d -p 80:80 --name coordinate-picker coordinate-picker
-```
-
-**Automated deployment (Windows):**
-
-```bash
-# Deploy to cloud server
-deploy-windows.bat YOUR_SERVER_IP 80
-```
-
-**Automated deployment (Linux/Mac):**
-
-```bash
-chmod +x deploy.sh
-./deploy.sh YOUR_SERVER_IP 80
-```
 
 ## Notes
 

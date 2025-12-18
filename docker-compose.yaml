@@ -5,13 +5,17 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: coordinate-picker:latest
+      args:
+        - BUILD_DATE=${BUILD_DATE:-$(date +%Y%m%d_%H%M%S)}
+    image: coordinate-picker:${VERSION:-latest}
     container_name: coordinate-picker
     ports:
       - "80:80"
     restart: unless-stopped
     environment:
       - TZ=Asia/Shanghai
+      - VERSION=${VERSION:-latest}
+      - BUILD_DATE=${BUILD_DATE:-unknown}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/health"]
       interval: 30s
@@ -20,7 +24,8 @@ services:
       start_period: 5s
     labels:
       - "com.coordinate-picker.description=Coordinate Picker Web Application"
-      - "com.coordinate-picker.version=1.0.0"
+      - "com.coordinate-picker.version=${VERSION:-latest}"
+      - "com.coordinate-picker.build-date=${BUILD_DATE:-unknown}"
     logging:
       driver: "json-file"
       options:
